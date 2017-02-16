@@ -21,7 +21,7 @@ MRuby::Build.new do |conf|
   # conf.gem :github => 'iij/mruby-io'
   # conf.gem :git => 'git@github.com:iij/mruby-io.git', :branch => 'master', :options => '-v'
   
-  conf.gem 'gems/mruby-pcap'
+  conf.gem 'gems/mruby-pcap2'
   conf.gem 'gems/mruby-pack'
   conf.gem 'gems/mruby-socket'
   conf.gem 'gems/mruby-io'

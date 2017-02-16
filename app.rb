@@ -5,6 +5,15 @@ if ARGV.size != 3
   raise "fuck"
 end
 
+
+def dump_hex(data, max = 40)
+  data[0,max].each_byte do |b|
+    print "%02x " % b
+  end
+  puts ""
+
+end
+
 module Packet
   class Ethernet
     attr_reader :src_mac, :dst_mac, :ether_type
@@ -39,7 +48,7 @@ module Packet
       # end
       # puts ""
       
-      version_and_len, _, @ip_pktlen, @ip_id, flags_and_frag_offset, @ip_ttl, @protocol, @chksum, @ip_src, @ip_dst, @ip_rest =
+      version_and_len, _, @ip_pktlen, @ip_id, flags_and_frag_offset, @ip_ttl, @ip_proto, @chksum, @ip_src, @ip_dst, rest =
         data.unpack('CCnnnCCna4a4a*')
         
       @ip_len = version_and_len & 0x0F
@@ -47,10 +56,16 @@ module Packet
       
       @flags = (flags_and_frag_offset >> 13) & 0x07
       @frag_offset = flags_and_frag_offset & 0x1FFF
+      
+      @ip_rest = rest[0, ip_pktlen - ip_len]
     end
     
     def inspect
-      "[IPv#{@ip_version} pktlen(#{@ip_pktlen}) src(#{ip_src}) dst(#{ip_dst}) id(#{ip_id}) flags(#{@flags}) frag_offset(#{frag_offset})] " + super
+      "[IPv#{@ip_version} pktlen(#{@ip_pktlen}) src(#{ip_src}) dst(#{ip_dst}) id(#{ip_id}) flags(#{@flags}) frag_offset(#{frag_offset}) data(#{@ip_rest.bytesize})] " + super
+    end
+    
+    def ip_pktlen
+      @ip_pktlen
     end
     
     def ip_len
@@ -76,6 +91,7 @@ module Packet
   
   class UDP < IPv4
     attr_reader :sport, :dport, :content, :udp_len
+    attr_writer :content
     
     def initialize(data)
       # C : 8
@@ -85,11 +101,13 @@ module Packet
       super(data)
       data = @ip_rest
       
-      @sport, @dport, @udp_len, _, @content = data.unpack('nnnna*')
+      @sport, @dport, @udp_len, _, rest = data.unpack('nnnna*')
+      
+      @content = rest[0, data.bytesize - 8]
     end
     
     def inspect
-      "[UDP sport(#{@sport}) dport(#{@dport}) len(#{@udp_len})] " + super
+      "[UDP sport(#{@sport}) dport(#{@dport}) data(#{@content.bytesize})] " + super
     end
     
   end
@@ -104,6 +122,10 @@ class PacketsSniffer
   
   def pkt_received(raw_data)
     pkt = Packet::IPv4.new(raw_data)
+    
+    if pkt.ip_proto != 17
+      return
+    end
     
     if( pkt.frag_offset == 0 ) && !pkt.more_fragments?
       # easy case, we hav a full packet
@@ -121,25 +143,35 @@ class PacketsSniffer
   end
   
   def reassemble_packet(pkt)
-    p pkt
     register_packet(pkt)
     
     # check if we have a full packet
     frags = find_packet_fragments(pkt).sort_by{|p| p.frag_offset }
     # p [:reassemble, pkt.ip_id, frags.size]
-    # p frags
+    
+    # sanity check
+    if frags[-1].more_fragments?
+      return
+    end
+    
+    data = ""
     
     expected_offset = 0
     frags.each do |f|
-      # p [:expected, expected_offset, f.frag_offset]
-      if f.frag_offset == expected_offset
-        p [:len, f.ip_pktlen - f.ip_len]
-        expected_offset += (f.ip_pktlen - f.ip_len)
-        frags[0].content << f.ip_rest
+      if ( f.frag_offset == 0 ) && (expected_offset == 0)
+        data << f.content
+        
+      elsif f.frag_offset == expected_offset
+        data << f.ip_rest
+        
       else
         return
       end
+      
+      expected_offset += (f.ip_pktlen - f.ip_len)
     end
+    
+    frags[0].content = data
     
     @callback.call(frags[0])
     
@@ -166,29 +198,16 @@ end
 dev = ARGV[0]
 port = ARGV[1]
 target_address = ARGV[2]
-cap = Pcap::Capture.open_live(dev, 8000)
+
+cap = PcapSniffer.new(dev, 8000)
 
 socket = UDPSocket.new
 
 sniffer = PacketsSniffer.new do |pkt|
-  p [:full, pkt.content.bytesize, pkt]
+  socket.send(pkt.content, 0, target_address, pkt.dport)
 end
 
-cap.setfilter("udp port #{port} or ((ip[6:2] & 0x1fff) != 0)", true)
 
-
-while pkt = cap.capture()
-  p [:packet, pkt[3].bytesize]
+cap.capture("udp port #{port} or ((ip[6:2] & 0x1fff) != 0)") do |pkt_data|
+  sniffer.pkt_received(pkt_data)
 end
-
-# cap.each_packet do |pkt|
-  # p [:packet, pkt[3].bytesize]
-  # sniffer.pkt_received(pkt[3])
-  
-  
-  # packet = Packet::IPv4.new(pkt[3])
-  
-  # udp = Packet::UDP.new(data)
-  # 
-  # socket.send(udp.content, 0, target_address, udp.dport)
-# end
