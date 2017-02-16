@@ -3,3 +3,4 @@
 cd mruby
 
 MRUBY_CONFIG=../build_config.rb rake
+cp -r bin ..
