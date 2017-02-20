@@ -1,18 +1,18 @@
 [submodule "mruby"]
 	path = mruby
-	url = git@github.com:mruby/mruby.git
+	url = https://github.com/:mruby/mruby.git
 [submodule "gems/mruby-pcap"]
 	path = gems/mruby-pcap
-	url = git@github.com:iij/mruby-pcap.git
+	url = https://github.com/:iij/mruby-pcap.git
 [submodule "gems/mruby-pack"]
 	path = gems/mruby-pack
-	url = git@github.com:iij/mruby-pack.git
+	url = https://github.com/:iij/mruby-pack.git
 [submodule "gems/mruby-socket"]
 	path = gems/mruby-socket
-	url = git@github.com:iij/mruby-socket.git
+	url = https://github.com/:iij/mruby-socket.git
 [submodule "gems/mruby-io"]
 	path = gems/mruby-io
-	url = git@github.com:iij/mruby-io.git
+	url = https://github.com/:iij/mruby-io.git
 [submodule "gems/mruby-pcap2"]
 	path = gems/mruby-pcap2
-	url = git@github.com:schmurfy/mruby-pcap2.git
+	url = https://github.com/:schmurfy/mruby-pcap2.git
