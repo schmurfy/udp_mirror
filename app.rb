@@ -208,6 +208,6 @@ sniffer = PacketsSniffer.new do |pkt|
 end
 
 
-cap.capture("udp port #{port} or ((ip[6:2] & 0x1fff) != 0)") do |pkt_data|
+cap.capture("(dst host not #{target_address}) and (udp port #{port} or ((ip[6:2] & 0x1fff) != 0))") do |pkt_data|
   sniffer.pkt_received(pkt_data)
 end
